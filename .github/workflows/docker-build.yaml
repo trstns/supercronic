@@ -86,10 +86,10 @@ jobs:
       - name: Update Dockerfile with new version
         run: |
           sed -i "s/ARG SUPERCRONIC_VERSION=.*/ARG SUPERCRONIC_VERSION=${{ needs.check-version.outputs.latest_version }}/" Dockerfile
-          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; # amd64/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.amd64_sha }}\"; # amd64/" Dockerfile
-          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; # arm64/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.arm64_sha }}\"; # arm64/" Dockerfile
-          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; # arm/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.arm_sha }}\"; # arm/" Dockerfile
-          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; # 386/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.i386_sha }}\"; # 386/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; `# amd64`/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.amd64_sha }}\"; `# amd64`/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; `# arm64`/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.arm64_sha }}\"; `# arm64`/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; `# arm`/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.arm_sha }}\"; `# arm`/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA256SUM=\".*\"; `# 386`/SUPERCRONIC_SHA256SUM=\"${{ steps.checksums.outputs.i386_sha }}\"; `# 386`/" Dockerfile
 
       - name: Commit updated Dockerfile
         run: |
