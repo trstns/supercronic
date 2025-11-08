@@ -1,0 +1,29 @@
+# Example crontab file for supercronic
+# Lines starting with # are comments
+
+# Run every minute
+*/1 * * * * echo "Running every minute at $(date)"
+
+# Run every 5 minutes
+*/5 * * * * echo "Running every 5 minutes"
+
+# Run every hour at minute 0
+0 * * * * echo "Running hourly"
+
+# Run daily at 2:30 AM
+30 2 * * * echo "Daily backup task"
+
+# Run every Monday at 9:00 AM
+0 9 * * 1 echo "Weekly Monday task"
+
+# Run with second resolution (every 30 seconds)
+*/30 * * * * * * echo "Running every 30 seconds"
+
+# Using named schedules
+@hourly echo "This runs hourly"
+@daily echo "This runs daily at midnight"
+@weekly echo "This runs weekly"
+
+# Example with a script
+# Make sure the script is executable and available in the container
+# */10 * * * * /scripts/my-script.sh

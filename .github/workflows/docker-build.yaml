@@ -1,0 +1,128 @@
+name: Build and Push Docker Image
+
+on:
+  schedule:
+    # Run daily at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.compare.outputs.should_build }}
+      latest_version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get latest supercronic release
+        id: get_version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/aptible/supercronic/releases/latest | jq -r .tag_name)
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest version: $LATEST_VERSION"
+
+      - name: Check if image exists with this version
+        id: compare
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          LATEST_VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          # Check if image exists with this tag
+          if docker manifest inspect $DOCKER_USERNAME/supercronic:$LATEST_VERSION > /dev/null 2>&1; then
+            echo "Image already exists for version $LATEST_VERSION"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "Image does not exist for version $LATEST_VERSION"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/supercronic
+          tags: |
+            type=raw,value=${{ needs.check-version.outputs.latest_version }}
+            type=raw,value=latest
+
+      - name: Get SHA checksums for new version
+        id: checksums
+        run: |
+          VERSION=${{ needs.check-version.outputs.latest_version }}
+          
+          # Fetch release data
+          RELEASE_DATA=$(curl -s https://api.github.com/repos/aptible/supercronic/releases/tags/$VERSION)
+          
+          # Extract SHA1 sums from release body
+          AMD64_SHA=$(echo "$RELEASE_DATA" | jq -r '.body' | grep -A 1 'supercronic-linux-amd64' | grep 'SUPERCRONIC_SHA1SUM=' | cut -d'=' -f2)
+          ARM64_SHA=$(echo "$RELEASE_DATA" | jq -r '.body' | grep -A 1 'supercronic-linux-arm64' | grep 'SUPERCRONIC_SHA1SUM=' | cut -d'=' -f2)
+          ARM_SHA=$(echo "$RELEASE_DATA" | jq -r '.body' | grep -A 1 'supercronic-linux-arm' | grep 'SUPERCRONIC_SHA1SUM=' | cut -d'=' -f2 | head -n1)
+          I386_SHA=$(echo "$RELEASE_DATA" | jq -r '.body' | grep -A 1 'supercronic-linux-386' | grep 'SUPERCRONIC_SHA1SUM=' | cut -d'=' -f2)
+          
+          echo "amd64_sha=$AMD64_SHA" >> $GITHUB_OUTPUT
+          echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
+          echo "arm_sha=$ARM_SHA" >> $GITHUB_OUTPUT
+          echo "i386_sha=$I386_SHA" >> $GITHUB_OUTPUT
+
+      - name: Update Dockerfile with new version
+        run: |
+          sed -i "s/ARG SUPERCRONIC_VERSION=.*/ARG SUPERCRONIC_VERSION=${{ needs.check-version.outputs.latest_version }}/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA1SUM=\".*\" # amd64/SUPERCRONIC_SHA1SUM=\"${{ steps.checksums.outputs.amd64_sha }}\" # amd64/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA1SUM=\".*\" # arm64/SUPERCRONIC_SHA1SUM=\"${{ steps.checksums.outputs.arm64_sha }}\" # arm64/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA1SUM=\".*\" # arm/SUPERCRONIC_SHA1SUM=\"${{ steps.checksums.outputs.arm_sha }}\" # arm/" Dockerfile
+          sed -i "s/SUPERCRONIC_SHA1SUM=\".*\" # 386/SUPERCRONIC_SHA1SUM=\"${{ steps.checksums.outputs.i386_sha }}\" # 386/" Dockerfile
+
+      - name: Commit updated Dockerfile
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add Dockerfile
+          git diff --staged --quiet || git commit -m "Update supercronic to ${{ needs.check-version.outputs.latest_version }}"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/386
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SUPERCRONIC_VERSION=${{ needs.check-version.outputs.latest_version }}
+
+      - name: Create release summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.check-version.outputs.latest_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** linux/amd64, linux/arm64, linux/arm/v7, linux/386" >> $GITHUB_STEP_SUMMARY
