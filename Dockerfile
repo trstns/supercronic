@@ -2,7 +2,7 @@ FROM alpine:latest
 
 ARG TARGETARCH
 ARG TARGETVARIANT
-ARG SUPERCRONIC_VERSION=v0.2.39
+ARG SUPERCRONIC_VERSION=v0.2.40
 
 # Install dependencies
 RUN apk add --no-cache ca-certificates curl tzdata
@@ -12,19 +12,19 @@ RUN set -ex; \
     case "${TARGETARCH}${TARGETVARIANT}" in \
         amd64) \
             SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64"; \
-            SUPERCRONIC_SHA256SUM="ff32af9488866d5a3df7d65328ee94175c260d9e851d2cfb81d8764828543bee"; `# amd64` \
+            SUPERCRONIC_SHA256SUM="97116b6da72cc6dea6eddd756db4b5ae77677e021cfda5a441a380c297dde3f3"; `# amd64` \
             ;; \
         arm64) \
             SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-arm64"; \
-            SUPERCRONIC_SHA256SUM="7ec7456bb10368f1e7e0e0f92652dea8846806b16af0f37ccd45be95d258afd5"; `# arm64` \
+            SUPERCRONIC_SHA256SUM="c47bbc77b6328d0f5e840ee61a663b018b8622851c215d1de663192836a1537e"; `# arm64` \
             ;; \
         armv7) \
             SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-arm"; \
-            SUPERCRONIC_SHA256SUM="50b779f4bc6dae0dce0d0cfdcf181feae686625c2632174b8e91f2e9a7aec9fc"; `# arm` \
+            SUPERCRONIC_SHA256SUM="d77e988af531d3cb21171d9bc6bc4cf68e2729b95f0fd339432a652544eedb7a"; `# arm` \
             ;; \
         386) \
             SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-386"; \
-            SUPERCRONIC_SHA256SUM="3634b6398bedf922b6e05311a35abef69fc2650c04508a53dd613058024991e7"; `# 386` \
+            SUPERCRONIC_SHA256SUM="9a29866310944d830b3f11a0f3af1dbfbc91c337dc917763dfca2e82ec8dcb56"; `# 386` \
             ;; \
         *) \
             echo "Unsupported architecture: ${TARGETARCH}${TARGETVARIANT}"; \
